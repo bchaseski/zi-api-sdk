@@ -1,0 +1,16 @@
+src
+test
+scripts
+examples
+.github
+.openapi-cache
+node_modules
+coverage
+.env*
+tsconfig.json
+tsup.config.ts
+vitest.config.ts
+vitest.integration.config.ts
+.eslintrc.cjs
+.prettierrc
+.gitignore

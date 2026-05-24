@@ -1,0 +1,70 @@
+name: codegen-drift
+
+# Weekly drift watcher: refetches every ZoomInfo OpenAPI spec from
+# docs.zoominfo.com, reruns codegen, and opens a PR if anything changed.
+# Can also be triggered manually from the Actions tab.
+
+on:
+  schedule:
+    - cron: '0 7 * * 1' # Mondays 07:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Refresh specs and run codegen
+        run: npm run codegen:refresh
+
+      - name: Detect changes
+        id: diff
+        run: |
+          if [ -n "$(git status --porcelain .openapi-cache src/generated)" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            git status --porcelain .openapi-cache src/generated
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No drift."
+          fi
+
+      - name: Typecheck + test against new types
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          npm run typecheck
+          npm test
+
+      - name: Open drift PR
+        if: steps.diff.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: bot/codegen-drift
+          title: 'chore(codegen): sync ZoomInfo OpenAPI specs'
+          commit-message: 'chore(codegen): sync ZoomInfo OpenAPI specs'
+          body: |
+            Automated weekly refresh from docs.zoominfo.com.
+
+            One or more of the six published OpenAPI specs has changed.
+            .openapi-cache/ and src/generated/ have been regenerated.
+
+            Review checklist:
+            - Skim the diff for breaking changes (renamed fields, removed endpoints).
+            - If a resource facade in src/resources/ references a renamed type, update it.
+            - npm run typecheck and npm test were run on this branch and passed.
+          labels: |
+            codegen
+            automated
+          add-paths: |
+            .openapi-cache/
+            src/generated/

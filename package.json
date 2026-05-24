@@ -1,0 +1,65 @@
+{
+  "name": "zoominfo-api",
+  "version": "0.1.0",
+  "description": "Unofficial community SDK for the ZoomInfo Developer Portal API (OAuth 2.0).",
+  "keywords": [
+    "zoominfo",
+    "sdk",
+    "api",
+    "b2b",
+    "gtm",
+    "oauth2",
+    "typescript"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "lint": "eslint \"src/**/*.ts\" \"test/**/*.ts\"",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\" \"*.md\"",
+    "codegen": "tsx scripts/codegen.ts",
+    "codegen:check": "tsx scripts/codegen-check.ts",
+    "codegen:refresh": "OPENAPI_REFRESH=1 tsx scripts/codegen.ts",
+    "prepublishOnly": "npm run typecheck && npm test && npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^8.57.0",
+    "msw": "^2.3.0",
+    "openapi-typescript": "^7.0.0",
+    "prettier": "^3.2.5",
+    "tsup": "^8.0.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.4.0",
+    "yaml": "^2.4.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
