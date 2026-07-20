@@ -110,15 +110,25 @@ export interface paths {
          *     These lookalike companies can be used to power prospecting, territory planning, or market expansion workflows where one wants to quickly find companies that "look like" a
          *     successful or high-priority account.
          *
+         *     **IMPORTANT: Either `filter[companyId]` or `filter[companyName]` MUST be provided. Omitting both will result in a 422 error.**
+         *
          *     To find Company Lookalikes, select the `companyId`, which identifies the company you want to use as the basis for finding lookalikes.
          *     If you are not able to provide the `companyId`, you can provide only the `companyName` instead, the service
          *     will attempt to resolve the best matching company and then return lookalike companies based on that company. The more precise the
          *     company name is (for example, use the full company name with correct spelling and full legal name), the more likely the
          *     service is able to track down the company ID and use it to find lookalikes.
          *
+         *     Optionally, you can narrow the results using the following boolean filters. When set to true, each filter restricts
+         *     lookalikes to companies that share the corresponding attribute with the reference company:
+         *     - `filter[sameRevenueRange]`: same revenue range
+         *     - `filter[sameCountry]`: same country
+         *     - `filter[sameIndustry]`: same industry
+         *     - `filter[sameEmployeeRange]`: same employee count range
+         *
          *     Behind the scenes, the model uses a semantic vector representation of the reference company's data to efficiently find similar companies in the ZoomInfo database.
          *
          *     The endpoint returns up to 100 lookalike companies, ordered from the most similar company to the least similar company (descending order by similarity score `attributes.score`).
+         *     To control the number of results returned, use the `page[size]` parameter with any integer value between 1 and 100.
          *     Each result includes the company name, similarity score, rank, and key firmographic attributes such as industry, revenue range, employee range, and country.
          */
         get: operations["CompanyLookalikesInterface_companyLookalikes"];
@@ -192,7 +202,7 @@ export interface paths {
          *     use the `page[size]` parameter with any integer value between 1 and 100. Each recommendation contains additional metadata (`meta`)
          *     that describes the reference person used to form the recommendation. Each recommendation includes the general similarity score (`score`),
          *     a re-ranking score (`reRankingScore`) which uses several propensity signals (such as contact similarity, contact quality, title boosting, etc.)
-         *     to refine relevancy, and explainability metadata (`meta`) that describes why this person was recommended (for example, the reference person
+         *     to refine relevancy. Returns `-1.0` when the ML reranking model did not run. Explainability metadata (`meta`) describes why this person was recommended (for example, the reference person
          *     and source of the interaction).
          */
         get: operations["ContactRecommendationsInterface_getContactRecommendations"];
@@ -1469,19 +1479,19 @@ export interface components {
         ContactRecommendationAttributes: {
             /**
              * Format: int32
-             * @description Rank of the recommended contact.
+             * @description Rank of the recommended contact (1-based, lower is better). Contacts are ordered from most to least relevant.
              */
             rank: number;
-            /** @description Brief description of the recommended person. */
+            /** @description Brief description of the recommended contact's profile, used to explain why this person was recommended. Absent when profile data is unavailable. */
             recommendedPersonBrief?: string;
             /**
              * Format: double
-             * @description Rank of this recommendation based on a machine learning model. Higher values indicate greater similarity.
+             * @description Re-ranking score of the recommended contact, produced by a machine learning model applied after initial retrieval to refine relevancy using propensity signals (contact similarity, quality, title boosting, etc.). Higher values indicate greater relevancy. Returns -1.0 when the ML reranking model did not run.
              */
             reRankingScore: number;
             /**
              * Format: double
-             * @description Score of the recommended contact. Higher values indicate greater similarity.
+             * @description Similarity score between the reference person and the recommended contact. Higher values indicate greater similarity. Due to the nature of vector store similarity calculations, values may occasionally exceed 1.0.
              */
             score: number;
         };
@@ -1910,11 +1920,11 @@ export interface components {
         };
         /** @description Explainability metadata for a contact recommendation. */
         ExplainabilityMetadata: {
-            /** @description Brief description of the reference person. */
+            /** @description Brief description of the reference person's profile that was used to generate this recommendation. */
             referencePersonBrief?: string;
             /**
              * Format: int64
-             * @description Unique identifier for a reference person (ZoomInfo Person ID). A reference person is a person who the sales person has interacted with in the past through the ZoomInfo platform (e.g. copy, export, view, etc...) or which is found in the tenant's CRM for past closed won deals. Reference contacts are used to find similar contacts at the target company.
+             * @description Unique identifier for a reference person (ZoomInfo Person ID). A reference person is someone the salesperson has interacted with through the ZoomInfo platform (e.g. copy, export, view) or a contact found in the tenant's CRM from past closed-won deals.
              */
             referencePersonId?: number;
             /** @description Source interaction type used to generate this recommendation, such as copied, exported, viewed, or CRM closed-won contacts. */
@@ -4091,10 +4101,20 @@ export interface operations {
     CompanyLookalikesInterface_companyLookalikes: {
         parameters: {
             query?: {
-                /** @description Unique ZoomInfo identifier for the reference company used to retrieve lookalikes. */
+                /** @description Unique ZoomInfo identifier for the reference company used to retrieve lookalikes. Required if companyName is not provided. */
                 "filter[companyId]"?: string;
                 /** @description Name of the reference company used to retrieve lookalikes. Required if companyId is not provided. */
                 "filter[companyName]"?: string;
+                /** @description When true, restricts results to companies in the same country as the reference company. */
+                "filter[sameCountry]"?: boolean;
+                /** @description When true, restricts results to companies within the same employee count range as the reference company. */
+                "filter[sameEmployeeRange]"?: boolean;
+                /** @description When true, restricts results to companies in the same industry as the reference company. */
+                "filter[sameIndustry]"?: boolean;
+                /** @description When true, restricts results to companies within the same revenue range as the reference company. */
+                "filter[sameRevenueRange]"?: boolean;
+                /** @description Number of records to return per page. Default is 25, maximum is 100. */
+                "page[size]"?: number;
             };
             header?: never;
             path?: never;
