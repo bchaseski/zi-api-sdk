@@ -806,7 +806,7 @@ export interface components {
             readonly updatedByName: string;
         };
         /** @enum {string} */
-        ColumnType: "CUSTOM" | "CRM_SEARCH" | "CRM" | "CSV" | "FORMULA" | "ACCOUNT_AI" | "CONNECTORS" | "ROUTING" | "SNOWFLAKE" | "AI" | "ZOOMINFO_COPILOT_SIGNALS" | "ZOOMINFO_AUDIENCE" | "ZOOMINFO_JOB_POSTINGS" | "ZOOMINFO_WEBSIGHTS" | "ZOOMINFO_CONTACT_CHANGES" | "ZOOMINFO_TECHNOLOGIES" | "ZOOMINFO_INTENT" | "ZOOMINFO_SCOOPS" | "ZOOMINFO_COMPANY" | "ZOOMINFO_CONTACT" | "ZOOMINFO_CUSTOM" | "ZOOMINFO_MATCH" | "ZOOMINFO_CONTACT_SEARCH" | "SIGNALS_AUDIENCE_DEFAULT" | "JSON_PARSER" | "REFERENCE_MAPPER" | "AUDIENCE_LOOKUP" | "GRAPHQL_AUDIENCE_DEFAULT" | "GRAPHQL";
+        ColumnType: "CUSTOM" | "CRM_SEARCH" | "CRM" | "CSV" | "FORMULA" | "ACCOUNT_AI" | "CONNECTORS" | "ROUTING" | "SNOWFLAKE" | "AI" | "ZOOMINFO_COPILOT_SIGNALS" | "ZOOMINFO_AUDIENCE" | "ZOOMINFO_JOB_POSTINGS" | "ZOOMINFO_WEBSIGHTS" | "ZOOMINFO_CONTACT_CHANGES" | "ZOOMINFO_TECHNOLOGIES" | "ZOOMINFO_INTENT" | "ZOOMINFO_SCOOPS" | "ZOOMINFO_COMPANY" | "ZOOMINFO_CONTACT" | "ZOOMINFO_CUSTOM" | "ZOOMINFO_MATCH" | "ZOOMINFO_CONTACT_SEARCH" | "SIGNALS_AUDIENCE_DEFAULT" | "JSON_PARSER" | "REFERENCE_MAPPER" | "AUDIENCE_LOOKUP" | "GRAPHQL_AUDIENCE_DEFAULT" | "GRAPHQL" | "ACCOUNT_LOOK_ALIKE" | "CONTACT_LOOK_ALIKE" | "ZOOMINFO_FEDERATED_SEARCH";
         /** @description JSON API model for Column update. */
         ColumnUpdateJsonApiModel: {
             /** @description The primary data of the document */
@@ -2638,7 +2638,7 @@ export interface operations {
         /** @description Request body containing the row deletion details */
         requestBody: {
             content: {
-                "application/json": components["schemas"]["DeleteRowJsonApiModel"];
+                "application/vnd.api+json": components["schemas"]["DeleteRowJsonApiModel"];
             };
         };
         responses: {
@@ -2789,7 +2789,7 @@ export interface operations {
         /** @description Request body containing the row search criteria */
         requestBody?: {
             content: {
-                "application/json": components["schemas"]["RowSearchJsonApiModel"];
+                "application/vnd.api+json": components["schemas"]["RowSearchJsonApiModel"];
             };
         };
         responses: {
