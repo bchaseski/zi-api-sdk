@@ -1162,6 +1162,8 @@ export interface components {
         CompanySearchRequestAttributes: {
             /** @description Full Company Address. */
             address?: string;
+            /** @description Filters for companies that have had any funding round (at any point in their history) matching one of the given types. Accepts an array of values from the endpoint: /lookup/funding-round-types. This is a different filter mode than recentFundingRoundTypes (which matches only the most recent round), so only one of the two should be supplied per request. */
+            allFundingRoundTypes?: string[];
             /** @description Search using Business Model (B2C, B2B, B2G) for a company. Default is All. */
             businessModel?: string[];
             /**
@@ -1293,6 +1295,8 @@ export interface components {
             parentId?: string;
             /** @description Default is false. Used in conjunction with the industryCodes input parameter. When set to true, any result returned must have one of the specified industries as a primary industry. If no industries are specified, then this parameter will be ignored. */
             primaryIndustriesOnly?: boolean;
+            /** @description Filters for companies whose most recent funding round matches one of the given types. Accepts an array of values from the endpoint: /lookup/funding-round-types. This is a different filter mode than allFundingRoundTypes (which matches any round in the company's history), so only one of the two should be supplied per request. */
+            recentFundingRoundTypes?: string[];
             /** @description Annual revenue range in U.S. dollars. Accepts a comma-separated list of values. */
             revenue?: string;
             /**
@@ -1774,7 +1778,9 @@ export interface components {
         ContactSearchRequestAttributes: {
             /** @description Full Company Address. */
             address?: string;
-            /** @description Exclude or include board members from search results. Default behavior is to exclude board members from search results. Submit this as “include” to include board members, set this as “only” to only include board members. */
+            /** @description Filters for companies that have had any funding round (at any point in their history) matching one of the given types. Accepts an array of values from the endpoint: /lookup/funding-round-types. This is a different filter mode than recentFundingRoundTypes (which matches only the most recent round), so only one of the two should be supplied per request. */
+            allFundingRoundTypes?: string[];
+            /** @description Exclude or include board members from search results. Default behavior is to exclude board members from search results. Submit this as `include` to include board members, set this as `only` to only include board members. */
             boardMember?: string;
             /** @description Filters results based on the provided Buying Group ID. Only one ID can be submitted. */
             buyingGroup?: string[];
@@ -1784,7 +1790,7 @@ export interface components {
             companyId?: string;
             /** @description Company name. */
             companyName?: string;
-            /** @description Defaults to only include the present company for a contact. Set this to “past” to return past companies, set this to “pastAndPresent” to include both. */
+            /** @description Defaults to only include the present company for a contact. Set this to `past` to return past companies, set this to `pastAndPresent` to include both. */
             companyPastOrPresent?: string;
             /** @description Company ranking (e.g., Fortune 500). Accepts a comma-separated list of IDs. */
             companyRanking?: string;
@@ -1868,7 +1874,7 @@ export interface components {
              * @description Start date of the funding in YYYY-MM-DD format. If fundingStartDate and fundingEndDate are both specified, they will be used as a range. Start date after end date returns an error. If start date and end date are the same, will return results for exact date.
              */
             fundingStartDate?: string;
-            /** @description Defaults to include. Set this to “exclude” to exclude contacts who have been notified of inclusion in ZoomInfo's database. Set this to “only” to only include contacts who have been notified. */
+            /** @description Defaults to include. Set this to `exclude` to exclude contacts who have been notified of inclusion in ZoomInfo's database. Set this to `only` to only include contacts who have been notified. */
             hasBeenNotified?: string;
             /** @description Hashed email value for the contact. Allows searching via an email address with the extra security of not exposing the email. Supported hash algorithms are: MD5, SHA1, SHA256 and SHA512. */
             hashedEmail?: string;
@@ -1918,7 +1924,7 @@ export interface components {
             /** @description Unique ZoomInfo identifier for the contact. Can include a comma-separated list. */
             personId?: string;
             /**
-             * @description List of phone numbers used to locate the contacts your are searching for. The phone numbers can either
+             * @description List of phone numbers used to locate the contacts you are searching for. The phone numbers can either
              *     be direct dial office phone numbers or mobile phone numbers. Contacts will be returned if they match a single
              *     phone number from the provided list. Phone numbers can be formatted in any standard format as all non-digit
              *     characters will be stripped before searching.
@@ -1938,6 +1944,8 @@ export interface components {
             positionStartDateMin?: string;
             /** @description Default is false. Used in conjunction with the industryCodes input parameter. When set to true, any result returned must have one of the specified industries as a primary industry. If no industries are specified, then this parameter will be ignored. */
             primaryIndustriesOnly?: boolean;
+            /** @description Filters for companies whose most recent funding round matches one of the given types. Accepts an array of values from the endpoint: /lookup/funding-round-types. This is a different filter mode than allFundingRoundTypes (which matches any round in the company's history), so only one of the two should be supplied per request. */
+            recentFundingRoundTypes?: string[];
             /** @description Specify a list of required fields for each record returned. Can include email (business email), phone (direct or company phone), directPhone (contact's direct phone), personalEmail, and mobilePhone. Can include a comma-separated list of these fields. */
             requiredFields?: string;
             /** @description Annual revenue range in U.S. dollars. Accepts a comma-separated list of values. */
@@ -2081,7 +2089,7 @@ export interface components {
              */
             validDate?: string;
         };
-        /** @description Contact's past employment information used for contact search criteria. */
+        /** @description Employment history criteria used in contact search. */
         ContactsEmploymentHistory: {
             /** @description Company name of past employment. */
             companyName: string;
@@ -2466,9 +2474,21 @@ export interface components {
          * @description All possible lookup field names
          * @enum {string}
          */
-        FieldNameEnum: "board-members" | "buying-groups" | "company-rankings" | "company-types" | "continents" | "countries" | "departments" | "employee-count" | "hashtags" | "industries" | "intent-topics" | "job-functions" | "job-titles" | "management-levels" | "metro-regions" | "naics-codes" | "news-categories" | "revenue-ranges" | "scoop-departments" | "scoop-topics" | "scoop-types" | "sic-codes" | "states" | "sub-unit-types" | "tech-categories" | "tech-products" | "tech-skills" | "tech-vendors" | "years-of-experience";
+        FieldNameEnum: "board-members" | "buying-groups" | "company-rankings" | "company-types" | "continents" | "countries" | "departments" | "employee-count" | "funding-round-types" | "hashtags" | "industries" | "intent-topics" | "job-functions" | "job-titles" | "management-levels" | "metro-regions" | "naics-codes" | "news-categories" | "revenue-ranges" | "scoop-departments" | "scoop-topics" | "scoop-types" | "sic-codes" | "states" | "sub-unit-types" | "tech-categories" | "tech-products" | "tech-skills" | "tech-vendors" | "years-of-experience";
         /** @enum {string} */
         FieldTypeEnum: "input" | "output";
+        /** @description Model for the funding round type */
+        FundingRoundTypeLookup: {
+            /** @description The attributes defining the resource */
+            attributes: components["schemas"]["BasicEntityModelAttributes"];
+            /** @description The unique identifier for the resource */
+            id: string;
+            /**
+             * @description The type of the resource (enum property replaced by openapi-typescript)
+             * @enum {string}
+             */
+            type: "FundingRoundType";
+        };
         /** @description Model for the hashtag enrich input lookup */
         HashtagEnrichInputLookUp: {
             /** @description The attributes defining the resource */
@@ -3113,7 +3133,7 @@ export interface components {
             /** @description The primary data of the document */
             data: components["schemas"]["LookupResponseResourceUnion"][];
         };
-        LookupResponseResourceUnion: components["schemas"]["BoardMemberLookup"] | components["schemas"]["BuyingGroupLookup"] | components["schemas"]["CompanyRankingLookup"] | components["schemas"]["CompanyTypeLookup"] | components["schemas"]["ContinentLookup"] | components["schemas"]["CountryLookup"] | components["schemas"]["DepartmentLookup"] | components["schemas"]["EmployeeCountLookup"] | components["schemas"]["HashtagLookup"] | components["schemas"]["IndustryLookup"] | components["schemas"]["IntentTopicLookup"] | components["schemas"]["JobFunctionLookup"] | components["schemas"]["JobTitleLookup"] | components["schemas"]["ManagementLevelLookup"] | components["schemas"]["MetroRegionLookup"] | components["schemas"]["NAICSCodeLookup"] | components["schemas"]["NewsCategoryLookup"] | components["schemas"]["RevenueRangeLookup"] | components["schemas"]["ScoopDepartmentLookup"] | components["schemas"]["ScoopTopicLookup"] | components["schemas"]["ScoopTypeLookup"] | components["schemas"]["SICCodeLookup"] | components["schemas"]["StateLookup"] | components["schemas"]["SubUnitTypeLookup"] | components["schemas"]["TechCategoryLookup"] | components["schemas"]["TechProductLookup"] | components["schemas"]["TechSkillLookup"] | components["schemas"]["TechVendorLookup"] | components["schemas"]["YearsOfExperienceLookup"];
+        LookupResponseResourceUnion: components["schemas"]["BoardMemberLookup"] | components["schemas"]["BuyingGroupLookup"] | components["schemas"]["CompanyRankingLookup"] | components["schemas"]["CompanyTypeLookup"] | components["schemas"]["ContinentLookup"] | components["schemas"]["CountryLookup"] | components["schemas"]["DepartmentLookup"] | components["schemas"]["EmployeeCountLookup"] | components["schemas"]["FundingRoundTypeLookup"] | components["schemas"]["HashtagLookup"] | components["schemas"]["IndustryLookup"] | components["schemas"]["IntentTopicLookup"] | components["schemas"]["JobFunctionLookup"] | components["schemas"]["JobTitleLookup"] | components["schemas"]["ManagementLevelLookup"] | components["schemas"]["MetroRegionLookup"] | components["schemas"]["NAICSCodeLookup"] | components["schemas"]["NewsCategoryLookup"] | components["schemas"]["RevenueRangeLookup"] | components["schemas"]["ScoopDepartmentLookup"] | components["schemas"]["ScoopTopicLookup"] | components["schemas"]["ScoopTypeLookup"] | components["schemas"]["SICCodeLookup"] | components["schemas"]["StateLookup"] | components["schemas"]["SubUnitTypeLookup"] | components["schemas"]["TechCategoryLookup"] | components["schemas"]["TechProductLookup"] | components["schemas"]["TechSkillLookup"] | components["schemas"]["TechVendorLookup"] | components["schemas"]["YearsOfExperienceLookup"];
         /** @description Represents the possible resource types returned in a lookup search input response. */
         LookupSearchInputOutputResponseResourceUnion: components["schemas"]["ContactSearchInputLookUp"] | components["schemas"]["CompanySearchInputLookUp"] | components["schemas"]["NewsSearchInputLookUp"] | components["schemas"]["IntentSearchInputLookUp"] | components["schemas"]["ScoopSearchInputLookUp"] | components["schemas"]["ContactSearchOutputLookUp"] | components["schemas"]["CompanySearchOutputLookUp"] | components["schemas"]["NewsSearchOutputLookUp"] | components["schemas"]["IntentSearchOutputLookUp"] | components["schemas"]["ScoopSearchOutputLookUp"];
         /** @description Lookup search output response */
@@ -3969,6 +3989,10 @@ export interface components {
             certified?: number;
             /** @description Search for companies based on description. Accepts a space-separated list of individual words. */
             companyDescription?: string;
+            /** @description Unique ZoomInfo identifier for a company. Will accept a comma-separated list. */
+            companyId?: string;
+            /** @description Company name. */
+            companyName?: string;
             /** @description Defaults to only include the present company for a contact. Set this to “past” to return past companies, set this to “pastAndPresent” to include both. */
             companyPastOrPresent?: string;
             /** @description Company ranking (e.g., Fortune 500). Accepts a comma-separated list of IDs. */
@@ -3979,6 +4003,8 @@ export interface components {
             companyTicker?: string[];
             /** @description Company type (private, public, etc.). Accepts a comma-separated list of types. */
             companyType?: string;
+            /** @description Company website URL in http://www.example.com format. Accepts a comma-separated list. */
+            companyWebsite?: string;
             /** @description Maximum accuracy score for search results. This score indicates the likelihood that a contact is reachable and still employed by the company listed. Minimum score is 70 and maximum is 99. */
             contactAccuracyScoreMax?: string;
             /** @description Minimum accuracy score for search results. This score indicates the likelihood that a contact is reachable and still employed by the company listed. Minimum score is 70 and maximum is 99. */
@@ -4074,6 +4100,8 @@ export interface components {
             oneYearEmployeeGrowthRateMax?: string;
             /** @description Minimum one year employee growth rate for a company. Use with oneYearEmployeeGrowthRateMax to set a range. */
             oneYearEmployeeGrowthRateMin?: string;
+            /** @description ZoomInfo Company ID for parent company. */
+            parentId?: string;
             /** @description Unique ZoomInfo identifier for the contact. Can include a comma-separated list. */
             personId?: string;
             /** @description Default is false. Used in conjunction with the industryCodes input parameter. When set to true, any result returned must have one of the specified industries as a primary industry. If no industries are specified, then this parameter will be ignored. */
@@ -4124,6 +4152,8 @@ export interface components {
             twoYearEmployeeGrowthRateMax?: string;
             /** @description Minimum two year employee growth rate for a company. Use with twoYearEmployeeGrowthRateMax to set a range. */
             twoYearEmployeeGrowthRateMin?: string;
+            /** @description ZoomInfo Company ID of the ultimate parent company. */
+            ultimateParentId?: string;
             /** @description Default is false. Setting true will only return scoops that have been updated since publishedStartDate. */
             updatedSinceCreation?: boolean;
             /** @description Zip Code or Postal Code of the company's address. */
