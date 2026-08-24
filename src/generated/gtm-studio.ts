@@ -12,36 +12,38 @@ export interface paths {
         };
         /**
          * List Audiences
-         * @description Retrieves a paginated list of all audiences, with optional filtering and sorting.
-         *     Use this endpoint to browse audiences or to find an `audienceId` before operating on rows, columns, or enrichment.
-         *     Filter by `type` (`CONTACT` or `COMPANY`) and `searchText` (case-insensitive contains match on audience name).
-         *     Use `sort` to order results by `name`, `createdAt`, `updatedAt`, or `recordCount`; prefix with `-` for descending order (default: `-updatedAt`).
-         *     Use `page[number]` and `page[size]` (default `25`, max `100`) to paginate.
-         *     Returns `200` with a paginated array of audience resources and navigation links.
+         * @description Search and browse all GTM Studio audiences. The primary way to discover an `audienceId` before loading rows, managing columns, or triggering enrichment. Also use this to check what audiences already exist before creating a duplicate.
+         *
+         *     **Filters:**
+         *     - `filter[type]`: `CONTACT` or `COMPANY`
+         *     - `filter[searchText]`: case-insensitive partial match on audience name
+         *
+         *     **Sorting:** `sort` accepts `name`, `createdAt`, `updatedAt`, or `recordCount`. Prefix with `-` for descending order. Default: `-updatedAt`.
+         *
+         *     **Pagination:** `page[number]` (default `1`) and `page[size]` (default `25`, max `100`).
+         *
+         *     Returns `200` with a paginated list of audience resources and navigation links.
          *     Returns `400` if filter or sort parameters are invalid.
          */
         get: operations["Audiences_listAudiences"];
         put?: never;
         /**
          * Create New Audience
-         * @description Create a new Go-to-Marketing (GTM) Studio audience. An audience is a collection of contacts or companies
-         *     that can be organized, filtered, and managed for marketing and sales purposes. You can use audiences to build
-         *     and maintain business-critical datasets or enrich customer lists from trade shows and conferences.
+         * @description Create a named working list of people (`CONTACT`) or companies (`COMPANY`) to drive a GTM motion — campaign targeting, enrichment runs, outbound sequences, or importing leads from trade shows and events.
          *
          *     You can define the audience name, audience type (`CONTACT` or `COMPANY`), and the source of the audience.
-         *     Currently, only `CUSTOM` audience sources are supported meaning the audience has no linked source dataset.
+         *     Supported audience sources are:
+         *     - `CUSTOM`: audience has no linked source dataset.
+         *     - `ZOOMINFO_PUBLIC_API`: audience is defined by `zoomInfoSearchCriteria`.
          *     Requests to create audiences can optionally include definitions for columns to be added to the audience.
          *     If no column definitions are provided, the audience will be created without any columns, and columns may
          *     be added in the future using the [Create New Columns](ref:columns_addcolumns) endpoint.
          *
-         *     Folders can be used to organize and group similar audiences or audiences that will be used for similar purposes.
-         *     Folders can be created using the [Create New Folder](ref:folders_createfolder) endpoint, and the id can be provided
-         *     in the `folderId` field to create the audience within that folder. You can use the [List Folders](ref:folders_listfolders)
-         *     endpoint to get a list of existing folders to place the audience into. If a `folderId` is not provided, the audience
-         *     creation process will create a new folder with the same name as the audience.
+         *     **Folders:** Every audience must live in a folder. Pass `folderId` to place it in an existing folder (use [List Folders](ref:folders_listfolders) to find one). If `folderId` is omitted, GTM Studio automatically creates a new folder with the same name as the audience.
          *
-         *     When `autoMatchCriteria` is `true`, the system uses AI to automatically infer match criteria
-         *     mappings for columns — for example, mapping an "Email" column to `CONTACT_EMAIL`.
+         *     **Columns:** Define columns up front — they describe the shape of data you intend to load. The `columnId` values returned here are required when loading rows via [Bulk Upsert Rows](ref:rows_upsertrows). Choose `dataType` carefully — it cannot be changed after creation. If `columns` is omitted, the audience is created with no columns; add them later via [Create New Columns](ref:columns_addcolumns) before loading any rows.
+         *
+         *     For `zoomInfoSearchCriteria`, use the [Lookup Data](ref:lookupinterface_lookup) endpoint to retrieve valid values.
          *
          *     Returns `201 Created` with the audience resource.
          *     Returns `400` if required fields are missing or `type` is invalid.
@@ -202,16 +204,24 @@ export interface paths {
         put?: never;
         /**
          * Create New Columns
-         * @description Adds one or more columns to an existing audience in a single bulk operation.
-         *     Columns define the data fields available for each row in the audience; each column has a `name`, a `dataType` (e.g., `TEXT`, `INTEGER`, `EMAIL`, `DATE`, `BOOLEAN`), and behavior flags (`isFrozen`, `isHidden`).
+         * @description Add columns to an audience to define the shape of data it holds. Do this before loading rows — `columnId` values returned here are required by [Bulk Upsert Rows](ref:rows_upsertrows). Choose `dataType` carefully — it cannot be changed after creation.
          *
-         *     Supported column types:
-         *     - `CUSTOM` (`columnType: CUSTOM`) - Static user-provided values
-         *     - `FORMULA` (`columnType: FORMULA`) - Values generated from a formula prompt
-         *     - `AI` (`columnType: AI`) - AI-generated values with optional `tool` and `dataDependencies` context
-         *     - `ZOOMINFO_MATCH` (`columnType: ZOOMINFO_MATCH`) - Enrichment-driven values (configure via Upsert Column Match Criteria endpoint)
+         *     **Supported `dataType` values for `CUSTOM` columns:**
+         *     - Text: `TEXT` (short labels, names, <2000 chars), `LARGE_TEXT` (notes, descriptions, >2000 chars)
+         *     - Contact data: `EMAIL` (single address), `PHONE` (single number), `URL` (website or domain)
+         *     - Numbers: `INTEGER` (whole numbers), `DECIMAL` (floating-point), `PERCENT`, `CURRENCY`
+         *     - Boolean: `BOOLEAN`, `CHECKBOX`
+         *     - Dates: `DATE` (calendar date, no time component)
+         *     - Arrays: `STRING_LIST`, `NUMBER_LIST`, `EMAIL_LIST`, `PHONE_LIST`, `URL_LIST`
+         *     - Structured: `OBJECT` (JSON)
          *
-         *     Returns `201 Created` with the full array of created column resources including system-assigned `columnId` values and read-only flags.
+         *     **Column types:**
+         *     - `CUSTOM` — Values you load directly via Bulk Upsert Rows. Requires `name` and `dataType`.
+         *     - `FORMULA` — Values computed from a `prompt` expression evaluated across other columns in the audience.
+         *     - `AI` — Values generated by a ZoomInfo AI tool. Requires `prompt`. Optionally specify `tool` (`AI_DATA_ANALYSIS`, `AI_WEB_RESEARCH`, `AI_CONVERSATION_INTELLIGENCE`, `AI_EMAILER`) and `dataDependencies` (other column IDs or knowledge base sources for grounding). Use [Get Column Data Dependencies](ref:columns_getsupporteddatadependencies) to discover valid context sources.
+         *     - `ZOOMINFO_MATCH` — Values populated by ZoomInfo enrichment matching. Accepts only `ZI_CONTACT_ID` or `ZI_COMPANY_ID` as `dataType`. Configure match criteria via [Upsert Column Match Criteria](ref:audiences_upsertmatchcriteria) after creation.
+         *
+         *     Returns `201 Created` with all column resources including system-assigned `columnId` values and read-only behavior flags (`isDeletable`, `isEditable`, `isFilterable`, `isSortable`).
          *     Returns `400` if required fields are missing or `dataType` is invalid.
          *     Returns `404` if no audience matches the provided `audienceId`.
          */
@@ -358,15 +368,16 @@ export interface paths {
         put?: never;
         /**
          * Bulk Upsert Rows
-         * @description Creates and/or updates multiple rows in an audience in a single bulk operation.
-         *     Each entry in the request body includes cell values keyed by `columnId`. Including a `rowId` updates that existing row; omitting `rowId` creates a new row.
-         *     Both creates and updates can be combined freely in the same request.
-         *     By default, `runEnrichment` is `false` — enrichment does not run automatically; set it to `true` to trigger enrichment on affected rows after the upsert.
-         *     To limit enrichment to specific columns, provide `columnId` values in the `columns` query parameter; if omitted, all enrichable columns are processed.
-         *     Returns `200` with `data[]` row resources — each entry includes `id`, `type`, and `attributes.values` with full cell details (`columnId`, `value`, `state`, and `errorDetails` when applicable).
+         * @description Load records into an audience — create new rows, update existing ones, or mix both in a single call. This is the primary way to populate an audience with GTM data: trade show leads, CRM exports, account lists, enrichment targets.
+         *
+         *     Each row is an array of cell values keyed by `columnId` (use the IDs returned by [Create Audience](ref:audiences_createaudience) or [Create New Columns](ref:columns_addcolumns)). Omit `id` to create a new row; include a `rowId` to update an existing one. Max 500 rows per call.
+         *
+         *     **Cell values:** Each cell's `value` must match the column's `dataType`. For example, an `EMAIL` column expects a string like `"user@example.com"`, an `INTEGER` column expects a number, a `STRING_LIST` column expects an array of strings. Sending the wrong shape will result in a validation error.
+         *
+         *     Returns `200` with the full row records including per-cell state: `RESULT` (value present), `BLANK` (no value set), `LOADING` (enrichment in progress), `ERROR` (enrichment failed — check `errorDetails`), or `NO_RESULT` (enrichment found no match).
          *     Returns `400` if the request body is malformed or `columnId` references are invalid.
          */
-        post: operations["Rows_upsertRows"];
+        post: operations["Rows_bulkUpsertRows"];
         delete?: never;
         options?: never;
         head?: never;
@@ -394,6 +405,31 @@ export interface paths {
          *     Returns `400` if filter criteria are malformed or column references are invalid.
          */
         post: operations["Rows_listRows"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/studio/v1/audiences/{audienceId}/rows/actions/upsert": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upsert Rows
+         * @description Creates and/or updates up to 50 rows in an audience in a single synchronous operation.
+         *     Each entry in the request body includes cell values keyed by `columnId`. Including a `rowId` updates that existing row; omitting `rowId` creates a new row.
+         *     Both creates and updates can be combined freely in the same request.
+         *     Use this endpoint when upserting **50 rows or fewer**. For larger batches (up to 500 rows), use [Bulk Upsert Rows](ref:Rows_upsertRows) at `POST /actions/bulk/upsert` instead.
+         *     Returns `200` with `data[]` row resources — each entry includes `id`, `type`, and `attributes.values` with full cell details (`columnId`, `value`, `state`, and `errorDetails` when applicable).
+         *     Returns `400` if the request body is malformed, exceeds 50 rows, or `columnId` references are invalid.
+         */
+        post: operations["Rows_upsertRows"];
         delete?: never;
         options?: never;
         head?: never;
@@ -567,7 +603,7 @@ export interface components {
              */
             type: string;
         };
-        AudienceAttributes: components["schemas"]["CustomAudienceAttributes"];
+        AudienceAttributes: components["schemas"]["CustomAudienceAttributes"] | components["schemas"]["ZoomInfoPublicApiAudienceAttributes"];
         /** @description Audience model representing audience details. */
         AudienceAttributesBase: {
             /** @description Optional free-text description of the audience's purpose or contents. */
@@ -681,6 +717,11 @@ export interface components {
         AudienceUpdateJsonApiModel: {
             /** @description The primary data of the document */
             data: components["schemas"]["UpdateAudience"];
+        };
+        /** @description JSON API model for bulk upsert Row request. Row `id` is optional — omit to create, provide to update. */
+        BulkRowUpsertListApiModel: {
+            /** @description The primary data of the document */
+            data: components["schemas"]["UpsertRow"][];
         };
         /** @description Defines the data and processing state for a single cell within a row. */
         CellDetails: {
@@ -806,11 +847,18 @@ export interface components {
             readonly updatedByName: string;
         };
         /** @enum {string} */
-        ColumnType: "CUSTOM" | "CRM_SEARCH" | "CRM" | "CSV" | "FORMULA" | "ACCOUNT_AI" | "CONNECTORS" | "ROUTING" | "SNOWFLAKE" | "AI" | "ZOOMINFO_COPILOT_SIGNALS" | "ZOOMINFO_AUDIENCE" | "ZOOMINFO_JOB_POSTINGS" | "ZOOMINFO_WEBSIGHTS" | "ZOOMINFO_CONTACT_CHANGES" | "ZOOMINFO_TECHNOLOGIES" | "ZOOMINFO_INTENT" | "ZOOMINFO_SCOOPS" | "ZOOMINFO_COMPANY" | "ZOOMINFO_CONTACT" | "ZOOMINFO_CUSTOM" | "ZOOMINFO_MATCH" | "ZOOMINFO_CONTACT_SEARCH" | "SIGNALS_AUDIENCE_DEFAULT" | "JSON_PARSER" | "REFERENCE_MAPPER" | "AUDIENCE_LOOKUP" | "GRAPHQL_AUDIENCE_DEFAULT" | "GRAPHQL" | "ACCOUNT_LOOK_ALIKE" | "CONTACT_LOOK_ALIKE" | "ZOOMINFO_FEDERATED_SEARCH";
+        ColumnType: "CUSTOM" | "CRM_SEARCH" | "CRM" | "CSV" | "FORMULA" | "ACCOUNT_AI" | "CONNECTORS" | "ROUTING" | "SNOWFLAKE" | "AI" | "ZOOMINFO_COPILOT_SIGNALS" | "ZOOMINFO_AUDIENCE" | "ZOOMINFO_JOB_POSTINGS" | "ZOOMINFO_WEBSIGHTS" | "ZOOMINFO_CONTACT_CHANGES" | "ZOOMINFO_TECHNOLOGIES" | "ZOOMINFO_INTENT" | "IN_MARKET_SCORE" | "ZOOMINFO_SCOOPS" | "ZOOMINFO_COMPANY" | "ZOOMINFO_CONTACT" | "ZOOMINFO_CUSTOM" | "ZOOMINFO_MATCH" | "ZOOMINFO_CONTACT_SEARCH" | "SIGNALS_AUDIENCE_DEFAULT" | "JSON_PARSER" | "REFERENCE_MAPPER" | "AUDIENCE_LOOKUP" | "GRAPHQL_AUDIENCE_DEFAULT" | "GRAPHQL" | "ACCOUNT_LOOK_ALIKE" | "CONTACT_LOOK_ALIKE" | "ZOOMINFO_FEDERATED_SEARCH";
         /** @description JSON API model for Column update. */
         ColumnUpdateJsonApiModel: {
             /** @description The primary data of the document */
             data?: components["schemas"]["UpdateColumn"];
+        };
+        /** @description Employment history criteria used in contact search. */
+        ContactsEmploymentHistory: {
+            /** @description Company name of past employment. */
+            companyName: string;
+            /** @description Job title at past employment. */
+            jobTitle: string;
         };
         /** @description Audience model representing audience details. */
         CreateAudienceAttributes: {
@@ -831,6 +879,8 @@ export interface components {
             readonly recordCount: number;
             /** @description Record type for this audience. `CONTACT` for person-level records; `COMPANY` for account-level records. Set at creation and cannot be changed. */
             type: components["schemas"]["AudienceType"];
+            /** @description ZoomInfo search criteria used to define audience targeting. */
+            zoomInfoSearchCriteria?: components["schemas"]["ZoomInfoSearchCriteria"];
         };
         /** @description Audience response resource returned on creation. */
         CreateAudienceResponse: {
@@ -869,6 +919,8 @@ export interface components {
             readonly recordCount: number;
             /** @description Record type for this audience. `CONTACT` for person-level records; `COMPANY` for account-level records. Set at creation and cannot be changed. */
             type: components["schemas"]["AudienceType"];
+            /** @description ZoomInfo search criteria used to define audience targeting. */
+            readonly zoomInfoSearchCriteria?: components["schemas"]["ZoomInfoSearchCriteria"];
         };
         /** @description JSON API model for the Create Audience response. */
         CreateAudienceResponseJsonApiModel: {
@@ -920,6 +972,8 @@ export interface components {
             origin: "CUSTOM";
             /** @description Record type for this audience. `CONTACT` for person-level records; `COMPANY` for account-level records. Set at creation and cannot be changed. */
             type: components["schemas"]["AudienceType"];
+            /** @description ZoomInfo search criteria used to define audience targeting. */
+            zoomInfoSearchCriteria?: components["schemas"]["ZoomInfoSearchCriteria"];
         };
         /** @description Deleting Rows Request Models */
         DeleteRowJsonApiModel: {
@@ -1296,6 +1350,51 @@ export interface components {
             /** @description Record type for this audience. `CONTACT` for person-level records; `COMPANY` for account-level records. Set at creation and cannot be changed. */
             type: components["schemas"]["AudienceType"];
         };
+        /** @description Audience read detail request resource. */
+        ReadAudienceDetail: {
+            /** @description The attributes defining the resource */
+            attributes: components["schemas"]["ReadAudienceDetailAttributes"];
+            /** @description The unique identifier for the resource */
+            id: string;
+            /** @description Non-standard meta information about the resource */
+            readonly meta?: components["schemas"]["AudienceMeta"];
+            /**
+             * @description The type of the resource
+             * @default Audience
+             */
+            type: string;
+        };
+        /** @description Audience attributes returned by detail endpoints. */
+        ReadAudienceDetailAttributes: {
+            /** @description The Columns in the audience */
+            readonly columns?: components["schemas"]["ReadColumn"][];
+            /** @description Optional free-text description of the audience's purpose or contents. */
+            description?: string;
+            /** @description UUID of the folder that contains this audience. If omitted on create, a new folder matching the audience name is created automatically. */
+            folderId?: string;
+            /** @description Display name of the folder that contains this audience. */
+            readonly folderName?: string;
+            /** @description Display name of the audience. */
+            name: string;
+            /** @description Optional notes about the audience for internal reference. */
+            notes?: string;
+            /** @description The origin of the audience source */
+            readonly origin: components["schemas"]["SourceOrigin"];
+            /**
+             * Format: int32
+             * @description Total number of rows currently in the audience. Read-only; updated automatically as rows are added or removed.
+             */
+            readonly recordCount: number;
+            /** @description Record type for this audience. `CONTACT` for person-level records; `COMPANY` for account-level records. Set at creation and cannot be changed. */
+            type: components["schemas"]["AudienceType"];
+            /** @description ZoomInfo search criteria used to define audience targeting. */
+            readonly zoomInfoSearchCriteria?: components["schemas"]["ZoomInfoSearchCriteria"];
+        };
+        /** @description JSON API model for Audience detail responses. */
+        ReadAudienceDetailJsonApiModel: {
+            /** @description The primary data of the document */
+            data: components["schemas"]["ReadAudienceDetail"];
+        };
         /** @description JSON API model for Audience. */
         ReadAudienceJsonApiModel: {
             /** @description The primary data of the document */
@@ -1449,7 +1548,7 @@ export interface components {
              */
             prev?: string;
         };
-        /** @description JSON API model for bulk upsert Row request. Row `id` is optional — omit to create, provide to update. */
+        /** @description JSON API model for synchronous upsert Row request (≤ 50 rows). Row `id` is optional — omit to create, provide to update. */
         RowUpsertListApiModel: {
             /** @description The primary data of the document */
             data: components["schemas"]["UpsertRow"][];
@@ -1470,7 +1569,7 @@ export interface components {
          * @description Indicates how the audience was originally populated. Read-only; set by the system based on the creation method.
          * @enum {string}
          */
-        SourceOrigin: "CUSTOM" | "CRM" | "CSV" | "ZOOMINFO_SIGNALS" | "SNOWFLAKE" | "ZOOMINFO" | "DERIVED_ZOOMINFO_CONTACTS" | "DERIVED_CRM_CONTACTS" | "DERIVED_CRM_ACCOUNTS" | "DERIVED_CRM_OPPORTUNITIES" | "AUDIENCE_COPY" | "GRAPHQL";
+        SourceOrigin: "CUSTOM" | "ZOOMINFO_PUBLIC_API" | "CRM" | "CSV" | "ZOOMINFO_SIGNALS" | "SNOWFLAKE" | "ZOOMINFO" | "DERIVED_ZOOMINFO_CONTACTS" | "DERIVED_CRM_CONTACTS" | "DERIVED_CRM_ACCOUNTS" | "DERIVED_CRM_OPPORTUNITIES" | "AUDIENCE_COPY" | "GRAPHQL";
         /** @description Column model representing static column in an audience. */
         StaticColumn: {
             /**
@@ -1540,8 +1639,6 @@ export interface components {
         };
         /** @description Base attributes shared by all column types in an audience. */
         UpdateColumnAttributes: {
-            /** @description Column type indicating the source and type of this column. */
-            columnType?: components["schemas"]["ColumnType"];
             /**
              * @description Whether this column is pinned (frozen) to the left in grid views. Optional; defaults to `false`.
              * @default false
@@ -1659,6 +1756,421 @@ export interface components {
             /** @description An RFC 6901 compliant JSON pointer to the entity in the request body that caused the error */
             pointer?: string;
         };
+        /** @description Company search configuration. */
+        "ZoomInfo.SearchCriteria.CompanySearch": {
+            /** @description Full Company Address. */
+            address?: string;
+            /** @description Filters for companies that have had any funding round (at any point in their history) matching one of the given types. Accepts an array of values from the endpoint: /lookup/funding-round-types. This is a different filter mode than recentFundingRoundTypes (which matches only the most recent round), so only one of the two should be supplied per request. */
+            allFundingRoundTypes?: string[];
+            /** @description Search using Business Model (B2C, B2B, B2G) for a company. Default is All. */
+            businessModel?: string[];
+            /**
+             * Format: int32
+             * @description Denotes if ZoomInfo's research and data team has confirmed activity within the past 12 months. 1 = certified, 0 = not certified.
+             */
+            certified?: number;
+            /** @description Search for companies based on description. Accepts a space-separated list of individual words. */
+            companyDescription?: string;
+            /** @description Unique ZoomInfo identifier for a company. */
+            companyId?: string;
+            /** @description Company name. */
+            companyName?: string;
+            /** @description Company ranking (e.g., Fortune 500). Accepts a comma-separated list of IDs. */
+            companyRanking?: string;
+            /** @description Company hierarchical structure values. Accepts a comma-separated list of values from 'UNSPECIFIED', 'LOCATION', 'DIVISION', 'ACQUISITION', 'SUBSIDIARY', 'FORMER_NEW_NAME'. */
+            companyStructureIncludedSubUnitTypes?: string;
+            /** @description Company stock ticker symbol. */
+            companyTicker?: string[];
+            /** @description Company type (private, public, etc.). Accepts a comma-separated list of types. */
+            companyType?: string;
+            /** @description Company website URL in http://www.example.com format. Accepts a comma-separated list. */
+            companyWebsite?: string;
+            /** @description Continent of the primary address of the associated company. */
+            continent?: string;
+            /** @description Country of the primary address of the associated company. */
+            country?: string;
+            /** @description Employee count range. Accepts a comma-separated list of values. Alternatively, for more granular ranges, you can use the employeeRangeMin and employeeRangeMax parameters. */
+            employeeCount?: string;
+            /** @description Maximum employee count for a company. Use with employeeRangeMin to set a range. Alternatively, you can use the employeeCount parameter to search for pre-defined ranges. */
+            employeeRangeMax?: string;
+            /** @description Minimum employee count for a company. Use with employeeRangeMax to set a range. Alternatively, you can use the employeeCount parameter to search for pre-defined ranges. */
+            employeeRangeMin?: string;
+            /**
+             * Format: date
+             * @description Engagement end date in YYYY-MM-DD format. EngagementStartDate is required.
+             */
+            engagementEndDate?: string;
+            /**
+             * Format: date
+             * @description Engagement start date in YYYY-MM-DD format.
+             */
+            engagementStartDate?: string;
+            /** @description List of engagement types to search for. Accepted values are 'email', 'phone', 'online meeting'. Accepts a comma-separated list of these values. */
+            engagementType?: string[];
+            /** @description Defaults to false. Set true to exclude defunct companies from results. */
+            excludeDefunctCompanies?: boolean;
+            /** @description Accepts a comma-separated list of U.S. and Canada states and metro areas. Companies from any of these regions will be excluded from search results. */
+            excludedRegions?: string;
+            /** @description Exclude companies with these technology product tags. String can be one value ('131315') or a comma-separated list which is treated as OR logic ('131315, 132222'). Individual values can also include AND logic ('131315 AND 131301, 132222'). This last example would be evaluated as ((131201 AND 131301) OR 132222). */
+            excludeTechAttributeTagList?: string;
+            /**
+             * Format: int32
+             * @description Maximum finance department budget amount in thousands (e.g., 1 = 1000, 500 = 500,000).  Minimum value is 0, maximum value is 2147483647 (approximately 2 trillion).
+             */
+            financeDepartmentBudgetMax?: number;
+            /**
+             * Format: int32
+             * @description Minimum finance department budget amount in thousands (e.g., 1 = 1000, 500 = 500,000).  Minimum value is 0, maximum value is 2147483647 (approximately 2 trillion).
+             */
+            financeDepartmentBudgetMin?: number;
+            /**
+             * Format: int32
+             * @description Maximum funding amount in thousands (e.g., 1 = 1000, 500 = 500,000). If fundingAmountMax is used without fundingAmountMin, the result will be the amount specified or less.
+             */
+            fundingAmountMax?: number;
+            /**
+             * Format: int32
+             * @description Minimum funding amount in thousands (e.g., 1 = 1000, 500 = 500,000). If fundingAmountMin is used without fundingAmountMax, the result will be the amount specified or greater.
+             */
+            fundingAmountMin?: number;
+            /**
+             * Format: date
+             * @description End date of the funding in YYYY-MM-DD format. If fundingStartDate and fundingEndDate are both specified, they will be used as a range. Start date after end date returns an error. If start date and end date are the same, will return results for exact date.
+             */
+            fundingEndDate?: string;
+            /**
+             * Format: date
+             * @description Start date of the funding in YYYY-MM-DD format. If fundingStartDate and fundingEndDate are both specified, they will be used as a range. Start date after end date returns an error. If start date and end date are the same, will return results for exact date.
+             */
+            fundingStartDate?: string;
+            /** @description Hash tags for a company. Can include a comma-separated list. */
+            hashTagString?: string;
+            /**
+             * Format: int32
+             * @description Maximum human resources department budget amount in thousands (e.g., 1 = 1000, 500 = 500,000).  Minimum value is 0, maximum value is 2147483647 (approximately 2 trillion).
+             */
+            hrDepartmentBudgetMax?: number;
+            /**
+             * Format: int32
+             * @description Minimum human resources department budget amount in thousands (e.g., 1 = 1000, 500 = 500,000).  Minimum value is 0, maximum value is 2147483647 (approximately 2 trillion).
+             */
+            hrDepartmentBudgetMin?: number;
+            /** @description Top-level industry that the contact works in. A contact can have multiple top level industries. Tags are based on the contact's current company. Can include a comma-separated list. */
+            industryCodes?: string;
+            /** @description Industry keywords associated with a company. Can include either 'AND' or 'OR' operators. For example, 'software AND security' or 'software OR security' */
+            industryKeywords?: string;
+            /**
+             * Format: int32
+             * @description Maximum information technology department budget amount in thousands (e.g., 1 = 1000, 500 = 500,000).  Minimum value is 0, maximum value is 2147483647 (approximately 2 trillion).
+             */
+            itDepartmentBudgetMax?: number;
+            /**
+             * Format: int32
+             * @description Minimum information technology department budget amount in thousands (e.g., 1 = 1000, 500 = 500,000).  Minimum value is 0, maximum value is 2147483647 (approximately 2 trillion).
+             */
+            itDepartmentBudgetMin?: number;
+            /** @description Location type (PersonOrHQ, PersonAndHQ, Person, HQ, PersonThenHQ). */
+            locationSearchType?: string;
+            /**
+             * Format: int32
+             * @description Maximum marketing department budget amount in thousands (e.g., 1 = 1000, 500 = 500,000).  Minimum value is 0, maximum value is 2147483647 (approximately 2 trillion).
+             */
+            marketingDepartmentBudgetMax?: number;
+            /**
+             * Format: int32
+             * @description Minimum marketing department budget amount in thousands (e.g., 1 = 1000, 500 = 500,000).  Minimum value is 0, maximum value is 2147483647 (approximately 2 trillion).
+             */
+            marketingDepartmentBudgetMin?: number;
+            /** @description Company metro area. Accepts a comma-separated list of U.S. and Canada metro areas. */
+            metroRegion?: string;
+            /** @description Four-digit numerical codes assigned by the U.S. government to business establishments to identify the primary business of the establishment. Accepts a comma-separated list of values. */
+            naicsCodes?: string;
+            /** @description Maximum one year employee growth rate for a company. Use with oneYearEmployeeGrowthRateMin to set a range. */
+            oneYearEmployeeGrowthRateMax?: string;
+            /** @description Minimum one year employee growth rate for a company. Use with oneYearEmployeeGrowthRateMax to set a range. */
+            oneYearEmployeeGrowthRateMin?: string;
+            /** @description ZoomInfo Company ID for parent company. */
+            parentId?: string;
+            /** @description Default is false. Used in conjunction with the industryCodes input parameter. When set to true, any result returned must have one of the specified industries as a primary industry. If no industries are specified, then this parameter will be ignored. */
+            primaryIndustriesOnly?: boolean;
+            /** @description Filters for companies whose most recent funding round matches one of the given types. Accepts an array of values from the endpoint: /lookup/funding-round-types. This is a different filter mode than allFundingRoundTypes (which matches any round in the company's history), so only one of the two should be supplied per request. */
+            recentFundingRoundTypes?: string[];
+            /** @description Annual revenue range in U.S. dollars. Accepts a comma-separated list of values. */
+            revenue?: string;
+            /**
+             * Format: int32
+             * @description Maximum annual revenue for a company in U.S. dollars (expressed in thousands). Use with revenueMin to set a range.
+             */
+            revenueMax?: number;
+            /**
+             * Format: int32
+             * @description Minimum annual revenue for a company in U.S. dollars (expressed in thousands). Use with revenueMax to set a range.
+             */
+            revenueMin?: number;
+            /** @description The Standard Industrial Classification is a system for classifying industries by a four-digit code numerical assigned by the U.S. government to business establishments to identify the primary business of the establishment. Accepts a comma-separated list. */
+            sicCodes?: string;
+            /** @description State or province of the company's address. */
+            state?: string;
+            /** @description Street address portion of the company's location. */
+            street?: string;
+            /** @description Company sub types (e.g., division, subsidiary). Use this in conjunction with parentId or ultimateParentId. */
+            subUnitTypes?: string;
+            /** @description Technology Product Tags. Can include a comma-separated list. */
+            techAttributeTagList?: string;
+            /** @description Maximum two year employee growth rate for a company. Use with twoYearEmployeeGrowthRateMin to set a range. */
+            twoYearEmployeeGrowthRateMax?: string;
+            /** @description Minimum two year employee growth rate for a company. Use with twoYearEmployeeGrowthRateMax to set a range. */
+            twoYearEmployeeGrowthRateMin?: string;
+            /** @description Company sub types (e.g., division, subsidiary). Use this in conjunction with parentId or ultimateParentId. */
+            ultimateParentId?: string;
+            /** @description Returns whether or not record is under management if set to true. */
+            underManagement?: boolean;
+            /** @description Zip Code or Postal Code of the company's address. */
+            zipCode?: string;
+            /**
+             * Format: int16
+             * @description Used in conjunction with zipCode, designates a geographical radius (in miles) from the zipCode provided. Supported values are [10, 25, 50, 100, 250]
+             */
+            zipCodeRadiusMiles?: number;
+            /** @description Maximum number of ZoomInfo contacts associated with company. */
+            zoominfoContactsMax?: string;
+            /** @description Minimum number of ZoomInfo contacts associated with company. */
+            zoominfoContactsMin?: string;
+        };
+        /** @description Contact search configuration. */
+        "ZoomInfo.SearchCriteria.ContactSearch": {
+            /** @description Full Company Address. */
+            address?: string;
+            /** @description Filters for companies that have had any funding round (at any point in their history) matching one of the given types. Accepts an array of values from the endpoint: /lookup/funding-round-types. This is a different filter mode than recentFundingRoundTypes (which matches only the most recent round), so only one of the two should be supplied per request. */
+            allFundingRoundTypes?: string[];
+            /** @description Exclude or include board members from search results. Default behavior is to exclude board members from search results. Submit this as `include` to include board members, set this as `only` to only include board members. */
+            boardMember?: string;
+            /** @description Filters results based on the provided Buying Group ID. Only one ID can be submitted. */
+            buyingGroup?: string[];
+            /** @description Search for companies based on description. Accepts a space-separated list of individual words. */
+            companyDescription?: string;
+            /** @description Unique ZoomInfo identifier for a company. */
+            companyId?: string;
+            /** @description Company name. */
+            companyName?: string;
+            /** @description Defaults to only include the present company for a contact. Set this to `past` to return past companies, set this to `pastAndPresent` to include both. */
+            companyPastOrPresent?: string;
+            /** @description Company ranking (e.g., Fortune 500). Accepts a comma-separated list of IDs. */
+            companyRanking?: string;
+            /** @description Company hierarchical structure values. Accepts a comma-separated list of values from 'UNSPECIFIED', 'LOCATION', 'DIVISION', 'ACQUISITION', 'SUBSIDIARY', 'FORMER_NEW_NAME'. */
+            companyStructureIncludedSubUnitTypes?: string;
+            /** @description Company stock ticker symbol. */
+            companyTicker?: string[];
+            /** @description Company type (private, public, etc.). Accepts a comma-separated list of types. */
+            companyType?: string;
+            /** @description Company website URL in http://www.example.com format. Accepts a comma-separated list. */
+            companyWebsite?: string;
+            /** @description Maximum accuracy score for search results. This score indicates the likelihood that a contact is reachable and still employed by the company listed. Minimum score is 70 and maximum is 99. */
+            contactAccuracyScoreMax?: string;
+            /** @description Minimum accuracy score for search results. This score indicates the likelihood that a contact is reachable and still employed by the company listed. Minimum score is 70 and maximum is 99. */
+            contactAccuracyScoreMin?: string;
+            /** @description Continent of the primary address of the associated company. */
+            continent?: string;
+            /** @description Country of the primary address of the associated company. */
+            country?: string;
+            /** @description Searches by contact's education. */
+            degree?: string;
+            /** @description Contact department at current place of employment. Accepts a comma-separated list of values. */
+            department?: string;
+            /** @description Email address for the contact in example@example.com format. */
+            emailAddress?: string;
+            /** @description Employee count range. Accepts a comma-separated list of values. Alternatively, for more granular ranges, you can use the employeeRangeMin and employeeRangeMax parameters. */
+            employeeCount?: string;
+            /** @description Maximum employee count for a company. Use with employeeRangeMin to set a range. Alternatively, you can use the employeeCount parameter to search for pre-defined ranges. */
+            employeeRangeMax?: string;
+            /** @description Minimum employee count for a company. Use with employeeRangeMax to set a range. Alternatively, you can use the employeeCount parameter to search for pre-defined ranges. */
+            employeeRangeMin?: string;
+            /** @description Search by contact's past employments. Accepts an array of past employment criteria. Contacts matching ANY of the provided past employment records will be returned. */
+            employmentHistory?: components["schemas"]["ContactsEmploymentHistory"][];
+            /**
+             * Format: date
+             * @description Engagement end date in YYYY-MM-DD format. EngagementStartDate is required.
+             */
+            engagementEndDate?: string;
+            /**
+             * Format: date
+             * @description Engagement start date in YYYY-MM-DD format.
+             */
+            engagementStartDate?: string;
+            /** @description List of engagement types to search for. Accepted values are 'email', 'phone', 'online meeting'. Accepts a comma-separated list of these values. */
+            engagementType?: string[];
+            /** @description Contact title at current place of employment using exact match logic. Use OR to input multiple job titles. */
+            exactJobTitle?: string;
+            /** @description Accepts a comma-separated list of U.S. and Canada states and metro areas. Companies from any of these regions will be excluded from search results. */
+            excludedRegions?: string;
+            /** @description Comma-separated list of job titles to exclude from search results. */
+            excludeJobTitle?: string;
+            /** @description Comma-separated list of management levels to exclude from search results. */
+            excludeManagementLevel?: string;
+            /** @description Defaults to false. To include partial profiles in your search results, set this to true. Contacts who do not have an active company associated with them are considered partial profiles. */
+            excludePartialProfiles?: boolean;
+            /** @description Exclude companies with these technology product tags. String can be one value ('131315') or a comma-separated list which is treated as OR logic ('131315, 132222'). Individual values can also include AND logic ('131315 AND 131301, 132222'). This last example would be evaluated as ((131201 AND 131301) OR 132222). */
+            excludeTechAttributeTagList?: string;
+            /** @description Defaults to false. Set this to true to include only executives in search results. */
+            executivesOnly?: boolean;
+            /** @description Contact first name. */
+            firstName?: string;
+            /** @description Contact full name. */
+            fullName?: string;
+            /**
+             * Format: int32
+             * @description Maximum funding amount in thousands (e.g., 1 = 1000, 500 = 500,000). If fundingAmountMax is used without fundingAmountMin, the result will be the amount specified or less.
+             */
+            fundingAmountMax?: number;
+            /**
+             * Format: int32
+             * @description Minimum funding amount in thousands (e.g., 1 = 1000, 500 = 500,000). If fundingAmountMin is used without fundingAmountMax, the result will be the amount specified or greater.
+             */
+            fundingAmountMin?: number;
+            /**
+             * Format: date
+             * @description End date of the funding in YYYY-MM-DD format. If fundingStartDate and fundingEndDate are both specified, they will be used as a range. Start date after end date returns an error. If start date and end date are the same, will return results for exact date.
+             */
+            fundingEndDate?: string;
+            /**
+             * Format: date
+             * @description Start date of the funding in YYYY-MM-DD format. If fundingStartDate and fundingEndDate are both specified, they will be used as a range. Start date after end date returns an error. If start date and end date are the same, will return results for exact date.
+             */
+            fundingStartDate?: string;
+            /** @description Defaults to include. Set this to `exclude` to exclude contacts who have been notified of inclusion in ZoomInfo's database. Set this to `only` to only include contacts who have been notified. */
+            hasBeenNotified?: string;
+            /** @description Hashed email value for the contact. Allows searching via an email address with the extra security of not exposing the email. Supported hash algorithms are: MD5, SHA1, SHA256 and SHA512. */
+            hashedEmail?: string;
+            /** @description Hash tags for a company. Can include a comma-separated list. */
+            hashTagString?: string;
+            /** @description Top-level industry that the contact works in. A contact can have multiple top level industries. Tags are based on the contact's current company. Can include a comma-separated list. */
+            industryCodes?: string;
+            /** @description Industry keywords associated with a company. Can include either 'AND' or 'OR' operators. For example, 'software AND security' or 'software OR security' */
+            industryKeywords?: string;
+            /** @description Contact job function at their current place of employment. */
+            jobFunction?: string;
+            /** @description Contact title at current place of employment. Use OR to input multiple job titles. */
+            jobTitle?: string;
+            /** @description Contact last name. */
+            lastName?: string;
+            /**
+             * Format: date
+             * @description Limit results to only contacts that have a `lastUpdateDate` **after** the provided value.
+             *     The value must be a date formatted using the ISO 8601 date format (YYYY-MM-DD).
+             *
+             *     Example value: `2024-01-01` will return only contacts with a `lastUpdatedDate` after January 1, 2024
+             */
+            lastUpdatedDateAfter?: string;
+            /**
+             * Format: int32
+             * @description Number of months within which the contact's profile was last updated.
+             */
+            lastUpdatedInMonths?: number;
+            /** @description Searches by contact's locationIds. */
+            locationCompanyId?: number[];
+            /** @description Location type (PersonOrHQ, PersonAndHQ, Person, HQ, PersonThenHQ). */
+            locationSearchType?: string;
+            /** @description Contact management level at current place of employment. */
+            managementLevel?: string;
+            /** @description Company metro area. Accepts a comma-separated list of U.S. and Canada metro areas. */
+            metroRegion?: string;
+            /** @description Contact middle initial. */
+            middleInitial?: string;
+            /** @description Four-digit numerical codes assigned by the U.S. government to business establishments to identify the primary business of the establishment. Accepts a comma-separated list of values. */
+            naicsCodes?: string;
+            /** @description Maximum one year employee growth rate for a company. Use with oneYearEmployeeGrowthRateMin to set a range. */
+            oneYearEmployeeGrowthRateMax?: string;
+            /** @description Minimum one year employee growth rate for a company. Use with oneYearEmployeeGrowthRateMax to set a range. */
+            oneYearEmployeeGrowthRateMin?: string;
+            /** @description ZoomInfo Company ID for parent company. */
+            parentId?: string;
+            /** @description Unique ZoomInfo identifier for the contact. Can include a comma-separated list. */
+            personId?: string;
+            /**
+             * @description List of phone numbers used to locate the contacts you are searching for. The phone numbers can either
+             *     be direct dial office phone numbers or mobile phone numbers. Contacts will be returned if they match a single
+             *     phone number from the provided list. Phone numbers can be formatted in any standard format as all non-digit
+             *     characters will be stripped before searching.
+             *
+             *     Example: `800-555-2345` is functionally equivalent to `8005552345` as an input value
+             */
+            phone?: string[];
+            /**
+             * Format: date
+             * @description Maximum date for when a contact began current employment. Use with positionStartDateMin to set a range. Uses YYYY-MM-DD format.
+             */
+            positionStartDateMax?: string;
+            /**
+             * Format: date
+             * @description Minimum date for when a contact began current employment. Use with positionStartDateMax to set a range. Uses YYYY-MM-DD format.
+             */
+            positionStartDateMin?: string;
+            /** @description Default is false. Used in conjunction with the industryCodes input parameter. When set to true, any result returned must have one of the specified industries as a primary industry. If no industries are specified, then this parameter will be ignored. */
+            primaryIndustriesOnly?: boolean;
+            /** @description Filters for companies whose most recent funding round matches one of the given types. Accepts an array of values from the endpoint: /lookup/funding-round-types. This is a different filter mode than allFundingRoundTypes (which matches any round in the company's history), so only one of the two should be supplied per request. */
+            recentFundingRoundTypes?: string[];
+            /** @description Specify a list of required fields for each record returned. Can include email (business email), phone (direct or company phone), directPhone (contact's direct phone), personalEmail, and mobilePhone. Can include a comma-separated list of these fields. */
+            requiredFields?: string;
+            /** @description Annual revenue range in U.S. dollars. Accepts a comma-separated list of values. */
+            revenue?: string;
+            /**
+             * Format: int32
+             * @description Maximum annual revenue for a company in U.S. dollars (expressed in thousands). Use with revenueMin to set a range.
+             */
+            revenueMax?: number;
+            /**
+             * Format: int32
+             * @description Minimum annual revenue for a company in U.S. dollars (expressed in thousands). Use with revenueMax to set a range.
+             */
+            revenueMin?: number;
+            /** @description School name. */
+            school?: string;
+            /** @description The Standard Industrial Classification is a system for classifying industries by a four-digit code numerical assigned by the U.S. government to business establishments to identify the primary business of the establishment. Accepts a comma-separated list. */
+            sicCodes?: string;
+            /** @description State or province of the company's address. */
+            state?: string;
+            /** @description Street address portion of the company's location. */
+            street?: string;
+            /** @description Company sub types (e.g., division, subsidiary). Use this in conjunction with parentId or ultimateParentId. */
+            subUnitTypes?: string;
+            /** @description Supplemental email address for the contact in example@example.com format. */
+            supplementalEmail?: string[];
+            /** @description Technology Product Tags. Can include a comma-separated list. */
+            techAttributeTagList?: string;
+            /** @description List of technology skill IDs for a contact. Default criteria is OR between multiple values. Should only contain string numbers. Find the IDs for the skills in the lookup endpoint. */
+            techSkills?: string[];
+            /** @description Maximum two year employee growth rate for a company. Use with twoYearEmployeeGrowthRateMin to set a range. */
+            twoYearEmployeeGrowthRateMax?: string;
+            /** @description Minimum two year employee growth rate for a company. Use with twoYearEmployeeGrowthRateMax to set a range. */
+            twoYearEmployeeGrowthRateMin?: string;
+            /** @description Company sub types (e.g., division, subsidiary). Use this in conjunction with parentId or ultimateParentId. */
+            ultimateParentId?: string;
+            /** @description Returns whether or not record is under management if set to true. */
+            underManagement?: boolean;
+            /**
+             * Format: date
+             * @description Limit results to only contacts that have a `validDate` **after** the provided value.
+             *     The value must be a date formatted using the ISO 8601 date format (YYYY-MM-DD)
+             *
+             *     Example value: `2024-01-01` will return only contacts with a `validDate` after January 1, 2024
+             */
+            validDateAfter?: string;
+            /** @description List of Web References for a contact. Default criteria is OR between multiple values. Should only contain english letters and numbers. */
+            webReferences?: string[];
+            /** @description Total years of experience. Accepts a comma-separated list. */
+            yearsOfExperience?: string;
+            /** @description Zip Code or Postal Code of the company's address. */
+            zipCode?: string;
+            /**
+             * Format: int16
+             * @description Used in conjunction with zipCode, designates a geographical radius (in miles) from the zipCode provided. Supported values are [10, 25, 50, 100, 250]
+             */
+            zipCodeRadiusMiles?: number;
+            /** @description Maximum number of ZoomInfo contacts associated with company. */
+            zoominfoContactsMax?: string;
+            /** @description Minimum number of ZoomInfo contacts associated with company. */
+            zoominfoContactsMin?: string;
+        };
         /** @description Column model representing a ZoomInfo match column — values are populated by matching rows against ZoomInfo's database using defined criteria. This Column accepts only ZI_COMPANY_ID or ZI_CONTACT_ID as data type since these columns are used for matching against ZoomInfo data and these are the only supported data types for matching. */
         ZoominfoMatchColumn: {
             /**
@@ -1690,6 +2202,40 @@ export interface components {
             readonly isSortable: boolean;
             /** @description Display name of the column shown in the UI and returned in row responses. */
             name: string;
+        };
+        /** @description Audience model representing audience details. */
+        ZoomInfoPublicApiAudienceAttributes: {
+            /** @description The Columns in the audience */
+            columns?: components["schemas"]["CreateColumnDuringAudienceCreationCreateItem"][];
+            /** @description Optional free-text description of the audience's purpose or contents. */
+            description?: string;
+            /** @description UUID of the folder that contains this audience. If omitted on create, a new folder matching the audience name is created automatically. */
+            folderId?: string;
+            /** @description Display name of the audience. */
+            name: string;
+            /** @description Optional notes about the audience for internal reference. */
+            notes?: string;
+            /**
+             * @description The origin of the audience source (enum property replaced by openapi-typescript)
+             * @enum {string}
+             */
+            origin: "ZOOMINFO_PUBLIC_API";
+            /** @description Record type for this audience. `CONTACT` for person-level records; `COMPANY` for account-level records. Set at creation and cannot be changed. */
+            type: components["schemas"]["AudienceType"];
+            /** @description ZoomInfo search criteria used to define audience targeting. */
+            zoomInfoSearchCriteria?: components["schemas"]["ZoomInfoSearchCriteria"];
+        };
+        /**
+         * @description ZoomInfo search criteria configuration for audience targeting. At least one of `companySearch` or `contactSearch` must be provided.
+         *     - For `COMPANY` audiences, `companySearch` is required; `contactSearch` is optional.
+         *     - For `CONTACT` audiences, `contactSearch` is required; `companySearch` is optional.
+         *     Use the [Lookup Data](ref:lookupinterface_lookup) endpoint to retrieve valid values where applicable.
+         */
+        ZoomInfoSearchCriteria: {
+            /** @description Company search configuration. Required for `COMPANY` audiences; optional for `CONTACT` audiences. */
+            companySearch?: components["schemas"]["ZoomInfo.SearchCriteria.CompanySearch"];
+            /** @description Contact search configuration. Required for `CONTACT` audiences; optional for `COMPANY` audiences. */
+            contactSearch?: components["schemas"]["ZoomInfo.SearchCriteria.ContactSearch"];
         };
     };
     responses: never;
@@ -1852,7 +2398,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/vnd.api+json": components["schemas"]["ReadAudienceJsonApiModel"];
+                    "application/vnd.api+json": components["schemas"]["ReadAudienceDetailJsonApiModel"];
                 };
             };
             /** @description Unauthorized */
@@ -2689,14 +3235,9 @@ export interface operations {
             };
         };
     };
-    Rows_upsertRows: {
+    Rows_bulkUpsertRows: {
         parameters: {
-            query?: {
-                /** @description List of `columnId` values to enrich per row. Only used when `runEnrichment` is `true`; if omitted, all enrichable columns are processed. */
-                columns?: string[];
-                /** @description When `true`, enrichment runs automatically on all affected rows after the upsert completes. Defaults to `false`. */
-                runEnrichment?: boolean;
-            };
+            query?: never;
             header?: never;
             path: {
                 /** @description The unique identifier for the audience */
@@ -2707,7 +3248,7 @@ export interface operations {
         /** @description Request body containing rows to create or update. Include `id` (rowId) to update an existing row; omit `id` to create a new row. */
         requestBody: {
             content: {
-                "application/vnd.api+json": components["schemas"]["RowUpsertListApiModel"];
+                "application/vnd.api+json": components["schemas"]["BulkRowUpsertListApiModel"];
             };
         };
         responses: {
@@ -2813,6 +3354,79 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["ZoomInfo.Core.Foundations.ErrorResponseModel"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["ZoomInfo.Core.Foundations.ErrorResponseModel"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["ZoomInfo.Core.Foundations.ErrorResponseModel"];
+                };
+            };
+        };
+    };
+    Rows_upsertRows: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The unique identifier for the audience */
+                audienceId: string;
+            };
+            cookie?: never;
+        };
+        /** @description Request body containing up to 50 rows to create or update. Include `id` to update an existing row; omit it to create a new row. */
+        requestBody: {
+            content: {
+                "application/vnd.api+json": components["schemas"]["RowUpsertListApiModel"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["UpsertRowsJsonApiModel"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["ZoomInfo.Core.Foundations.ErrorResponseModel"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.api+json": components["schemas"]["ZoomInfo.Core.Foundations.ErrorResponseModel"];
+                };
+            };
+            /** @description Payment Required */
+            402: {
                 headers: {
                     [name: string]: unknown;
                 };
